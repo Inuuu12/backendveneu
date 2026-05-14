@@ -67,3 +67,13 @@ CREATE TABLE IF NOT EXISTS venue_ratings (
   FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- venue fees
+CREATE TABLE IF NOT EXISTS venue_fees (
+  id VARCHAR(36) PRIMARY KEY,
+  venue_id VARCHAR(36),
+  name VARCHAR(100),
+  amount DECIMAL(10,2),
+  type ENUM('fixed', 'per_day'),
+  FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE
+);

@@ -1,9 +1,38 @@
 const db = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
+const buildUpdateQuery = (table, idField, id, data, allowedFields) => {
+  const fields = allowedFields.filter((field) => Object.prototype.hasOwnProperty.call(data, field));
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  const setClause = fields.map((field) => `${field} = ?`).join(', ');
+  const values = fields.map((field) => data[field]);
+
+  return {
+    sql: `UPDATE ${table} SET ${setClause} WHERE ${idField} = ?`,
+    values: [...values, id]
+  };
+};
+
 // Create booking
 exports.createBooking = async (bookingData) => {
-  const { venue_id, user_id, booking_date, start_time, end_time, duration_hours, note } = bookingData;
+  const {
+    venue_id,
+    user_id,
+    booking_date,
+    start_time,
+    end_time,
+    duration_hours,
+    note,
+    adult_guests,
+    child_guests,
+    total_price,
+    payment_status,
+    payment_method
+  } = bookingData;
 
   // Check availability (no overlapping bookings)
   const sql_check = `
@@ -33,12 +62,46 @@ exports.createBooking = async (bookingData) => {
   // Create booking
   const id = uuidv4();
   const sql = `
-    INSERT INTO bookings (id, venue_id, user_id, booking_date, start_time, end_time, duration_hours, note, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    INSERT INTO bookings (
+      id, venue_id, user_id, booking_date, start_time, end_time, duration_hours,
+      note, status, adult_guests, child_guests, total_price, payment_status, payment_method
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
   `;
   
-  await db.query(sql, [id, venue_id, user_id, booking_date, start_time, end_time, duration_hours, note]);
+  await db.query(sql, [
+    id,
+    venue_id,
+    user_id,
+    booking_date,
+    start_time,
+    end_time,
+    duration_hours,
+    note,
+    adult_guests,
+    child_guests,
+    total_price,
+    payment_status || 'pending',
+    payment_method
+  ]);
   return id;
+};
+
+exports.getAllBookings = async () => {
+  const sql = `
+    SELECT 
+      b.*,
+      u.name as user_name,
+      u.email as user_email,
+      v.name as venue_name
+    FROM bookings b
+    JOIN users u ON b.user_id = u.id
+    JOIN venues v ON b.venue_id = v.id
+    ORDER BY b.booking_date DESC, b.start_time DESC
+  `;
+
+  const [rows] = await db.query(sql);
+  return rows;
 };
 
 // Get all bookings for a venue
@@ -107,6 +170,41 @@ exports.updateBookingStatus = async (id, status) => {
   return result.affectedRows > 0;
 };
 
+exports.updateBooking = async (id, data) => {
+  const allowedFields = [
+    'venue_id',
+    'booking_date',
+    'start_time',
+    'end_time',
+    'duration_hours',
+    'note',
+    'status',
+    'adult_guests',
+    'child_guests',
+    'total_price',
+    'payment_status',
+    'payment_method'
+  ];
+  const query = buildUpdateQuery('bookings', 'id', id, data, allowedFields);
+
+  if (!query) {
+    return false;
+  }
+
+  const [result] = await db.query(query.sql, query.values);
+  return result.affectedRows > 0;
+};
+
+exports.updatePaymentStatus = async (id, payment_status, payment_method) => {
+  const data = { payment_status };
+
+  if (payment_method !== undefined) {
+    data.payment_method = payment_method;
+  }
+
+  return exports.updateBooking(id, data);
+};
+
 // Cancel booking
 exports.cancelBooking = async (id) => {
   const sql = `
@@ -116,6 +214,11 @@ exports.cancelBooking = async (id) => {
   `;
   
   const [result] = await db.query(sql, [id]);
+  return result.affectedRows > 0;
+};
+
+exports.deleteBooking = async (id) => {
+  const [result] = await db.query('DELETE FROM bookings WHERE id = ?', [id]);
   return result.affectedRows > 0;
 };
 

@@ -1,30 +1,39 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); 
+const path = require('path');
+const cors = require('cors');
+
 const app = express();
 
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://carivenue.netlify.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:3000', 
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
 app.use(express.json());
 
-// ROUTES
-const venueRoutes = require('./routes/venue/venue.routes');
-const bookingRoutes = require('./routes/booking.routes'); 
-const authRoutes = require('./routes/auth.routes'); 
-// const paymentRoutes = require('./routes/payment.routes'); // Not yet active
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/venues', require('./routes/venue/venue.routes'));
+app.use('/api/bookings', require('./routes/booking.routes'));
+app.use('/api/payments', require('./routes/payment.routes'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use('/api/venues', venueRoutes);
-app.use('/api/bookings', bookingRoutes); 
-app.use('/api/auth', authRoutes); 
+app.get('/', (req, res) => {
+  res.send('API RUNNING');
+});
 
-// module.exports = app must come before other route definitions if they refer back to it
-// but typically we put all app.use before module.exports
-module.exports = app;
-
-// Health Checks / Test APIs
 app.get('/api/test', (req, res) => {
   res.json({
     status: 'success',
@@ -32,10 +41,11 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-app.post("/api/test", (req, res) => {
-  const data = req.body;
+app.post('/api/test', (req, res) => {
   res.json({
-    message: "Data diterima",
-    data
+    message: 'Data diterima',
+    data: req.body
   });
 });
+
+module.exports = app;

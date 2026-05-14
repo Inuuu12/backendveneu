@@ -1,22 +1,20 @@
-// src/config/db.js
+require('dotenv').config();
 const mysql = require('mysql2/promise');
 
 const db = mysql.createPool({
-  host: '127.0.0.1',
-  user: 'root',
-  password: '',
-  database: 'venue_db',
+  host: process.env.DB_HOST || '127.0.0.1',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'venue_db',
+  port: Number(process.env.DB_PORT || 3306),
   multipleStatements: true
 });
 
 db.getConnection()
-  .then(() => console.log('✅ MySQL Connected!'))
-  .catch((err) => console.error('❌ MySQL Connection Failed: ', err.message));
+  .then((connection) => {
+    connection.release();
+    console.log('MySQL connected');
+  })
+  .catch((err) => console.error('MySQL connection failed:', err.message));
 
 module.exports = db;
-
-console.log("DB HOST:", process.env.DB_HOST);
-console.log("DB USER:", process.env.DB_USER);
-console.log("DB NAME:", process.env.DB_NAME);
-console.log("DB PORT:", process.env.DB_PORT);
-console.log('DB FROM ENV =', process.env.DB_NAME);

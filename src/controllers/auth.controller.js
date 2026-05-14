@@ -7,7 +7,11 @@ const { v4: uuidv4 } = require('uuid');
 // @route   POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role = 'user' } = req.body;
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
 
     // Check if user exists
     const [user] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -21,7 +25,7 @@ exports.register = async (req, res) => {
     const userId = uuidv4();
     await db.query(
       'INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)',
-      [userId, name, email, hashedPassword, role]
+      [userId, name, email, hashedPassword, 'user']
     );
 
     res.status(201).json({

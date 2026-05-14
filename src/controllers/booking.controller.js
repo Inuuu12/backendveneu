@@ -5,7 +5,19 @@ const Booking = require('../models/booking.model');
 // @access  Private
 exports.createBooking = async (req, res) => {
   try {
-    const { venue_id, booking_date, start_time, end_time, duration_hours, note } = req.body;
+    const {
+      venue_id,
+      booking_date,
+      start_time,
+      end_time,
+      duration_hours,
+      note,
+      adult_guests,
+      child_guests,
+      total_price,
+      payment_status,
+      payment_method
+    } = req.body;
     const user_id = req.user.id;
 
     // Validate required fields
@@ -23,7 +35,12 @@ exports.createBooking = async (req, res) => {
       start_time,
       end_time,
       duration_hours,
-      note
+      note,
+      adult_guests,
+      child_guests,
+      total_price,
+      payment_status,
+      payment_method
     });
 
     res.status(201).json({
@@ -34,6 +51,26 @@ exports.createBooking = async (req, res) => {
   } catch (error) {
     console.error('createBooking error:', error);
     res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Get all bookings
+// @route   GET /api/bookings/all
+// @access  Private/Admin
+exports.getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.getAllBookings();
+
+    res.json({
+      status: 'success',
+      data: bookings
+    });
+  } catch (error) {
+    console.error('getAllBookings error:', error);
+    res.status(500).json({
       status: 'error',
       message: error.message
     });
@@ -168,6 +205,71 @@ exports.updateBookingStatus = async (req, res) => {
   }
 };
 
+// @desc    Update booking data
+// @route   PATCH /api/bookings/:id
+// @access  Private/Admin
+exports.updateBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await Booking.updateBooking(id, req.body);
+
+    if (!success) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Booking not found or no changes made'
+      });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Booking updated successfully'
+    });
+  } catch (error) {
+    console.error('updateBooking error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Update payment status
+// @route   PATCH /api/bookings/:id/payment
+// @access  Private/Admin
+exports.updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { payment_status, payment_method } = req.body;
+
+    if (!['pending', 'paid', 'failed'].includes(payment_status)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid payment_status. Must be: pending, paid, or failed'
+      });
+    }
+
+    const success = await Booking.updatePaymentStatus(id, payment_status, payment_method);
+
+    if (!success) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Booking not found'
+      });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Payment status updated successfully'
+    });
+  } catch (error) {
+    console.error('updatePaymentStatus error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
 // @desc    Cancel booking
 // @route   PATCH /api/bookings/:id/cancel
 // @access  Private
@@ -206,6 +308,34 @@ exports.cancelBooking = async (req, res) => {
     });
   } catch (error) {
     console.error('cancelBooking error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// @desc    Delete booking
+// @route   DELETE /api/bookings/:id
+// @access  Private/Admin
+exports.deleteBooking = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const success = await Booking.deleteBooking(id);
+
+    if (!success) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Booking not found'
+      });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Booking deleted successfully'
+    });
+  } catch (error) {
+    console.error('deleteBooking error:', error);
     res.status(500).json({
       status: 'error',
       message: error.message
